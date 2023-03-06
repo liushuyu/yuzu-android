@@ -1,9 +1,13 @@
 # SPDX-FileCopyrightText: 2022 yuzu Emulator Project
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-name: 'yuzu verify'
+name: 'yuzu build'
 
 on:
+  push:
+    # disabled per-push trigger, since we are using ADO for this
+    # branches: [ "*" ]
+    tags: [ "*" ]
   pull_request:
     branches: [ master ]
 env:
@@ -23,7 +27,7 @@ jobs:
       - name: 'Verify Formatting'
         run: bash -ex ./.ci/scripts/format/script.sh
   build:
-    name: 'test build'
+    name: 'build'
     needs: format
     runs-on: ubuntu-latest
     strategy:
@@ -69,7 +73,7 @@ jobs:
           name: ${{ matrix.type }}
           path: artifacts/
   build-msvc:
-    name: 'test build (windows, msvc)'
+    name: 'build (windows, msvc)'
     needs: format
     runs-on: windows-2022
     steps:
@@ -86,7 +90,7 @@ jobs:
         run: |
           choco install vulkan-sdk wget
           call refreshenv
-          wget https://github.com/mbitsnbites/buildcache/releases/download/v0.27.6/buildcache-windows.zip
+          wget https://github.com/mbitsnbites/buildcache/releases/download/v0.28.2/buildcache-windows.zip
           7z x buildcache-windows.zip
           copy buildcache\bin\buildcache.exe C:\ProgramData\chocolatey\bin
           rmdir buildcache
@@ -165,3 +169,26 @@ jobs:
         with:
           name: android
           path: artifacts/
+  # release steps
+  release-android:
+    runs-on: ubuntu-latest
+    needs: [android]
+    if: ${{ startsWith(github.ref, 'refs/tags/') }}
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v3
+      - name: Query tag name
+        uses: little-core-labs/get-git-tag@v3.0.2
+        id: tagName
+      - name: Create release
+        uses: actions/create-release@v1
+        with:
+          tag_name: ${{ steps.tagName.outputs.tag }}
+          release_name: ${{ steps.tagName.outputs.tag }}
+          draft: false
+          prerelease: false
+      - name: Upload artifacts
+        uses: alexellis/upload-assets@0.2.3
+        with:
+          asset_paths: '["./**/*.apk","./**/*.aab"]'
