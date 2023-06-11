@@ -176,7 +176,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v3
       - name: Query tag name
-        uses: little-core-labs/get-git-tag@v3.0.2
+        uses: olegtarasov/get-tag@v2.1.2
         id: tagName
       - name: Create release
         uses: actions/create-release@v1
